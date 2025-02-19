@@ -1,0 +1,19 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace IurAir.Domain.Iur
+{
+    /*
+     * AA26MAY0251M0T17                    000000091 21111 6  IUXHYD        611111110000001001 G6Q7 * I3 38C723            26MAY     G6Q7 * I3   00004JUNLHR                 SIN                 001001001001001001000000000000  01 085126MAY
+     * AA27MAR0137M0117                    003971196 18811 6  OBZSTR        611111110000101001 AK47 * SQ 1E5FB1            27MAR 0137AK47 * SQ   00002OCTPMIPALMA DE MALLORCAPMIPALMA DE MALLORCA003003002002003001000000000000  01 083727MAR
+     * 
+     * M50101  SQ#2442138882/   0.00/GBP     565.00/     146.81/ONE/CA 1.1DIMITRAKOPOULOU KONSTANTINA/1/F/E
+     * M50101  IB#9247740440/    .07/EUR   73.00/   5.17/ONE/CA 1.1PROHENS LOPEZ LUIS MR/1/F/E
+     * */
+    internal class NDC
+    {
+    }
+}

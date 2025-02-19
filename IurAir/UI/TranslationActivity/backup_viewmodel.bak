@@ -1,0 +1,657 @@
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using IurAir.Domain.Air;
+using IurAir.Domain.Air.Lines;
+using IurAir.Domain.Air.Shared;
+using IurAir.Domain.Common;
+using IurAir.Domain.Iur;
+using IurAir.Models;
+using Microsoft.Win32;
+using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Data;
+using System.Windows.Input;
+
+namespace IurAir.UI.TranslationActivity
+{
+    public class TranslationsViewModel : ObservableObject, WatcherCallback
+    {
+        public ICommand LoadFile { get; }
+
+        private void _LoadFile()
+        {
+            OpenFileDialog dialog = new OpenFileDialog();
+            dialog.FileName = "*";
+            dialog.DefaultExt = ".*";
+            bool? res = dialog.ShowDialog();
+            if (res == true)
+            {
+
+                try
+                {
+                    ReadFile(dialog.FileName);
+                    ResetDetails();
+                }
+                catch (Exception ex)
+                {
+                    //MessageBox.Show(ex.Message);
+                    var errDir = CreateDir("errors");
+                    var fn = DateTime.Now.ToString("ddMM_HHmmss");
+                    File.WriteAllText($"{errDir}\\{fn}.log", $"{ex.Message}\n\n{ex.StackTrace}");
+                }
+
+            }
+        }
+
+        private PnrFileInfo _file;
+
+
+
+        private FileSystemWatcher _watcher;
+        private string _pathToWatch;
+        private bool _isWatching;
+
+        public bool watching
+        {
+            get { return _isWatching; }
+            set { _isWatching = value; }
+        }
+
+        public void watch()
+        {
+            if (!watching)
+            {
+                _watcher = new FileSystemWatcher(_pathToWatch);
+                _watcher.EnableRaisingEvents = true;
+                _watcher.IncludeSubdirectories = false;
+
+                _watcher.Created += OnFileCreated;
+                watching = true;
+            }
+        }
+
+        public void stopWatch()
+        {
+            _watcher.Created -= OnFileCreated;
+            _watcher.EnableRaisingEvents = false;
+            _watcher.Dispose();
+            watching = false;
+        }
+
+        public void OnFileCreated(object sender, FileSystemEventArgs e)
+        {
+            this.FileCreated(e.FullPath);
+        }
+
+
+
+        private List<string> getAllFiles(string path)
+        {
+            var dir = (new FileInfo(path)).Directory;
+            var fileList = new List<string>();
+            foreach (var fi in dir.GetFiles())
+            {
+                try
+                {
+                    fileList.Add(fi.FullName);
+
+                }
+                catch (Exception ex)
+                {
+
+                }
+            }
+            return fileList;
+        }
+
+        private DocumentParse currentParse;
+
+        private Boolean CanProcess(IurDocument document)
+        {
+            if (Properties.Settings.Default.DebugMode)
+            {
+                return true;
+            }
+            if (document.CheckType() != Domain.Iur.DocumentType.VoidTicket)
+            {
+                return document.AgencyIata == Properties.Settings.Default.AgencyIATA;
+            }
+            return true;
+        }
+
+        private void ReadFile(string file, bool showBoxes = true)
+        {
+            try
+            {
+                this.IurFile = File.ReadAllText(file);
+                string[] lines = File.ReadAllLines(file);
+                PnrFileInfo pnrInfo = AirAdvancedFormatter.ParsePnrFileInfo(new FileInfo(file));
+                var dir = CreateDir(pnrInfo.PnrName);
+                var fileToWrite = Path.Combine(dir.FullName, $"{pnrInfo.getCompleteFileName()}.PNR");
+                File.WriteAllText(fileToWrite, IurFile);
+                PnrFileInfo writedFile = AirAdvancedFormatter.ParsePnrFileInfo(new FileInfo(fileToWrite));
+                _file = writedFile;
+                IurDocument doc = new IurDocument(lines, pnrInfo);
+                if (!CanProcess(doc))
+                {
+                    MessageBox.Show("This software is not registered for your Agency, please contact your commercial at Sabre.");
+                    throw new AgencyIataException("This software is not registered for your Agency, please contact your commercial at Sabre.");
+                }
+                IurSplitter splitter = new IurSplitter(doc);
+                var split = splitter.splitByType();
+                AirAdvancedFormatter aaf = new AirAdvancedFormatter(splitter);
+                DocumentParse parse = splitter.Parse;
+                if (parse.DocumentType == Domain.Iur.DocumentType.VoidTicket)
+                {
+                    var files = AirAdvancedFormatter.RecoverPreviousPnrFiles(new FileInfo(fileToWrite));
+                    if (files != null && files.Count > 0)
+                    {
+                        foreach (var f in files)
+                        {
+
+                            PnrFileInfo fPnrInfo = f.Info;
+                            string[] fLines = File.ReadAllLines(f.Info.FilePath);
+                            IurDocument fDoc = new IurDocument(fLines, fPnrInfo);
+                            IurSplitter iSplit = new IurSplitter(fDoc);
+                            if (!CanProcess(fDoc))
+                            {
+                                MessageBox.Show("This software is not registered for your Agency, please contact your commercial at Sabre.");
+                                throw new AgencyIataException("This software is not registered for your Agency, please contact your commercial at Sabre.");
+                            }
+                            if (iSplit.Parse.DocumentType == Domain.Iur.DocumentType.TicketEmission)
+                            {
+                                var cparse = CombineEmissionAndVoid(iSplit.Parse, parse);
+                                if (cparse != null)
+                                {
+                                    parse = cparse;
+                                    splitter.Parse = cparse;
+                                }
+                            }
+                        }
+                    }
+                }
+                PopulateDetails(parse);
+                currentParse = parse;
+                var serializerSettings = new JsonSerializerSettings() { Formatting = Formatting.Indented, NullValueHandling = NullValueHandling.Ignore, DefaultValueHandling = DefaultValueHandling.Ignore };
+                Json = JsonConvert.SerializeObject(parse, Formatting.Indented);
+                var combinedAir = aaf.getRenders();
+                string cAir = "";
+                if (combinedAir.Count() > 0)
+                {
+                    renders = combinedAir;
+                }
+                for (int i = 0; i < combinedAir.Count; i++)
+                {
+                    if (i == combinedAir.Count - 1)
+                    {
+                        cAir += combinedAir[i].Content;
+                    }
+                    else
+                    {
+                        cAir += combinedAir[i].Content + "\n\n###### NEW AIR FILE ######\n";
+                    }
+                }
+                AirFile = cAir;
+                DocumentType = parse.DocumentType.ToString();
+                this.DocumentLoaded = true;
+                this.CurrentFile = file;
+                _Download();
+            }
+            catch (Exception e)
+            {
+                LogError(e);
+            }
+        }
+        private void LogError(Exception ex)
+        {
+            string errorPath = Properties.Settings.Default.ErrorFolder;
+            if (String.IsNullOrEmpty(errorPath))
+            {
+                errorPath = CreateDir("ErrorLogs").FullName;
+            }
+            File.AppendAllText($"{errorPath}\\error.log", $"{ex}\n");
+            if (ex is AgencyIataException)
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    Application.Current.Shutdown();
+                });
+            }
+        }
+        private DirectoryInfo CreateDir(string pnrName)
+        {
+            DirectoryInfo docDir = Directory.CreateDirectory(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + "\\I2A");
+            return docDir.CreateSubdirectory(pnrName);
+        }
+
+        private DocumentParse CombineEmissionAndVoid(DocumentParse emission, DocumentParse voidParse)
+        {
+            VoidCombinedParse cp = new VoidCombinedParse(voidParse, emission);
+            return cp.resultingParse;
+        }
+
+        private void PopulateDetails(DocumentParse parse)
+        {
+            if (parse.Passengers != null)
+            {
+                foreach (var pax in parse.Passengers)
+                {
+                    Passengers.Add(new ObservablePassenger(pax.toPassenger()));
+                }
+            }
+            if (parse.Itinerary != null)
+            {
+                foreach (M3Object m3 in parse.Itinerary)
+                {
+                    Itinerary.Add(new ObservableItinerary(m3.toItinerary()));
+                }
+            }
+        }
+
+        public ICommand ShowDetails { get; }
+
+        private void _ShowDetails()
+        {
+            this.VisibleDetails = !this.VisibleDetails;
+            this.VisibleLoader = !this.VisibleLoader;
+        }
+
+        public ICommand OpenFolder { get; }
+
+        private void _OpenFolder()
+        {
+            if (string.IsNullOrEmpty(this.CurrentFile))
+            {
+                MessageBox.Show("You should select a file.");
+            }
+            else
+            {
+                try
+                {
+                    Process.Start("explorer.exe", string.Format("/select, \"{0}\"", CurrentFile));
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Could not open selected file's folder.\n{ex.Message}");
+                }
+            }
+        }
+
+        public ICommand Download { get; }
+        private string Json = "";
+        private List<AirRender> renders = new List<AirRender>();
+        public void _Download()
+        {
+            if (currentParse != null)
+            {
+                string prep = "";
+
+                switch (currentParse.DocumentType)
+                {
+                    case Domain.Iur.DocumentType.TicketEmission:
+                        prep = "TKT_";
+                        break;
+                    case Domain.Iur.DocumentType.VoidTicket:
+                        prep = "VOID_";
+                        break;
+                    case Domain.Iur.DocumentType.EMD:
+                        prep = "EMD_";
+                        break;
+                    case Domain.Iur.DocumentType.Refund:
+                        prep = "REF_";
+                        break;
+                    case Domain.Iur.DocumentType.EvenExchange:
+                        prep = "EEX_";
+                        break;
+                    case Domain.Iur.DocumentType.Exchange:
+                        prep = "NEX_";
+                        break;
+                    default:
+                        prep = "NA_";
+                        break;
+                }
+
+                if (!string.IsNullOrEmpty(AirFile) && !string.IsNullOrEmpty(Json))
+                {
+                    var lastWrite = "";
+                    for (int i = 0; i < renders.Count; i++)
+                    {
+                        FileInfo fi = new FileInfo(_file.FilePath);
+                        string fileName = _file.getCompleteFileName();
+                        if (fileName == lastWrite)
+                        {
+                            _file.FileNr++;
+                            fileName = _file.getCompleteFileName();
+                        }
+                        File.WriteAllText($"{fi.DirectoryName}\\AIR_{prep}{fileName}.AIR", renders[i].Content);
+                        var bo = Properties.Settings.Default.BackOfficeFolder;
+                        if (bo.Length > 1 && Directory.Exists(bo))
+                        {
+                            File.WriteAllText($"{bo}\\AIR_{prep}{fileName}.AIR", renders[i].Content);
+                        }
+                        lastWrite = fileName;
+                    }
+
+                    File.WriteAllText(_file.FilePath + ".json", Json);
+                    if (!Properties.Settings.Default.AutoConvert) { MessageBox.Show($"File saved in {_file.getCompleteFileName()}"); }
+                }
+                else
+                {
+                    if (!Properties.Settings.Default.AutoConvert) { MessageBox.Show("Load a file and retry"); }
+                }
+
+            }
+        }
+
+        public TranslationsViewModel()
+        {
+            LoadFile = new RelayCommand(_LoadFile);
+            ShowDetails = new RelayCommand(_ShowDetails);
+            OpenFolder = new RelayCommand(_OpenFolder);
+            Download = new RelayCommand(_Download);
+            if (Properties.Settings.Default.AutoConvert)
+            {
+                //EnableWatcher();
+            }
+        }
+
+        private void EnableWatcher()
+        {
+            if (Properties.Settings.Default.IurFolder.Length < 1 || !Directory.Exists(Properties.Settings.Default.IurFolder))
+            {
+                MessageBox.Show("Please set input and output folders in Setup Window");
+            }
+
+            _pathToWatch = Properties.Settings.Default.IurFolder;
+            watch();
+        }
+
+        public void FileCreated(string file)
+        {
+            this.IurFile = File.ReadAllText(file);
+            string[] lines = File.ReadAllLines(file);
+            PnrFileInfo pnrInfo = AirAdvancedFormatter.ParsePnrFileInfo(new FileInfo(file));
+            var dir = CreateDir(pnrInfo.PnrName);
+            var fileToWrite = Path.Combine(dir.FullName, $"{pnrInfo.getCompleteFileName()}.PNR");
+            File.WriteAllText(fileToWrite, IurFile);
+            PnrFileInfo writedFile = AirAdvancedFormatter.ParsePnrFileInfo(new FileInfo(fileToWrite));
+            _file = writedFile;
+            IurDocument doc = new IurDocument(lines, pnrInfo);
+            IurSplitter splitter = new IurSplitter(doc);
+            var split = splitter.splitByType();
+            AirAdvancedFormatter aaf = new AirAdvancedFormatter(splitter);
+            DocumentParse parse = splitter.Parse;
+
+            if (parse.DocumentType == Domain.Iur.DocumentType.VoidTicket)
+            {
+                var files = AirAdvancedFormatter.RecoverPreviousPnrFiles(new FileInfo(fileToWrite));
+                if (files != null && files.Count > 0)
+                {
+                    foreach (var f in files)
+                    {
+
+                        PnrFileInfo fPnrInfo = f.Info;
+                        string[] fLines = File.ReadAllLines(f.Info.FilePath);
+                        IurDocument fDoc = new IurDocument(fLines, fPnrInfo);
+                        IurSplitter iSplit = new IurSplitter(fDoc);
+                        if (iSplit.Parse.DocumentType == Domain.Iur.DocumentType.TicketEmission)
+                        {
+                            var cparse = CombineEmissionAndVoid(iSplit.Parse, parse);
+                            if (cparse != null)
+                            {
+                                parse = cparse;
+                                splitter.Parse = cparse;
+                            }
+                        }
+                    }
+                }
+            }
+            //PopulateDetails(parse);
+            currentParse = parse;
+            var serializerSettings = new JsonSerializerSettings() { Formatting = Formatting.Indented, NullValueHandling = NullValueHandling.Ignore, DefaultValueHandling = DefaultValueHandling.Ignore };
+            Json = JsonConvert.SerializeObject(parse, Formatting.Indented);
+            var combinedAir = aaf.getRenders();
+            string cAir = "";
+            if (combinedAir.Count() > 0)
+            {
+                renders = combinedAir;
+            }
+            for (int i = 0; i < combinedAir.Count; i++)
+            {
+                if (i == combinedAir.Count - 1)
+                {
+                    cAir += combinedAir[i].Content;
+                }
+                else
+                {
+                    cAir += combinedAir[i].Content + "\n\n###### NEW AIR FILE ######\n";
+                }
+            }
+            AirFile = cAir;
+            DocumentType = parse.DocumentType.ToString();
+            this.DocumentLoaded = true;
+            this.CurrentFile = file;
+            _Download();
+        }
+
+
+        private String _IurFile = "IUR";
+
+        public String IurFile
+        {
+            get => _IurFile;
+            set
+            {
+                SetProperty(ref _IurFile, value);
+            }
+        }
+
+        private String _AirFile = "AIR";
+
+        public String AirFile
+        {
+            get => _AirFile;
+            set
+            {
+                SetProperty(ref _AirFile, value);
+            }
+        }
+
+        private bool _DocumentLoaded = false;
+
+        public bool DocumentLoaded
+        {
+            get => _DocumentLoaded;
+            set
+            {
+                SetProperty(ref _DocumentLoaded, value);
+            }
+        }
+
+        private bool _VisibleDetails = false;
+
+        public bool VisibleDetails
+        {
+            get => _VisibleDetails;
+            set
+            {
+                SetProperty(ref _VisibleDetails, value);
+            }
+        }
+
+        private bool _VisibleLoader = true;
+
+        public bool VisibleLoader
+        {
+            get => _VisibleLoader;
+            set
+            {
+                SetProperty(ref _VisibleLoader, value);
+            }
+        }
+
+        private String _CurrentFile;
+
+        public String CurrentFile
+        {
+            get => _CurrentFile;
+            set
+            {
+                SetProperty(ref _CurrentFile, value);
+            }
+        }
+
+
+
+
+
+        #region DETAILS
+
+        private void ResetDetails()
+        {
+            Passengers = new ObservableCollection<ObservablePassenger>();
+            Itinerary = new ObservableCollection<ObservableItinerary> { };
+            Fares = new ObservableCollection<ObservableFares>();
+            Remarks = new ObservableCollection<ObservableRemark> { };
+            DocumentType = "";
+        }
+
+
+        private ObservableCollection<ObservablePassenger> _Passengers = new ObservableCollection<ObservablePassenger>();
+        public ObservableCollection<ObservablePassenger> Passengers
+        {
+            get => _Passengers;
+            set
+            {
+                SetProperty(ref _Passengers, value);
+            }
+        }
+
+        private ObservableCollection<ObservableItinerary> _Itinerary = new ObservableCollection<ObservableItinerary>();
+
+        public ObservableCollection<ObservableItinerary> Itinerary
+        {
+            get => _Itinerary;
+            set => SetProperty(ref _Itinerary, value);
+        }
+
+        private ObservableCollection<ObservableFares> _Fares = new ObservableCollection<ObservableFares>();
+        public ObservableCollection<ObservableFares> Fares
+        {
+            get => _Fares;
+            set => SetProperty(ref _Fares, value);
+        }
+
+        private ObservableCollection<ObservableRemark> _Remarks = new ObservableCollection<ObservableRemark>();
+        public ObservableCollection<ObservableRemark> Remarks
+        {
+            get => _Remarks;
+            set => SetProperty(ref _Remarks, value);
+        }
+
+        private string _DocumentType;
+        public string DocumentType
+        {
+            get => _DocumentType;
+            set => SetProperty<string>(ref _DocumentType, value);
+        }
+        #endregion
+    }
+    [ValueConversion(typeof(DateTime), typeof(String))]
+    public class DateConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            DateTime date = (DateTime)value;
+            return date.ToString("dd/MM HH:mm");
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            string strValue = value as string;
+            DateTime resultDateTime;
+            if (DateTime.TryParse(strValue, out resultDateTime))
+            {
+                return resultDateTime;
+            }
+            return DependencyProperty.UnsetValue;
+        }
+    }
+}
+
+/*
+                foreach (PassengerData p in ard.Passengers)
+                    {
+                        Passengers.Add(new ObservablePassenger(p.toPassenger()));
+                        if (p.EconomicInfo != null)
+                        {
+                            M2EconomicInfo ec = p.EconomicInfo;
+                            PriceData baseFare = ec.BaseFare;
+                            PriceData totalFare = ec.TotalFare;
+                            string TicketNr = "Not Available";
+                            string PaxType = "";
+                            string ta = totalFare.Amount;
+                            string ba = baseFare.Amount;
+                            if (p.PassengerM2 != null)
+                            {
+                                TicketNr = p.PassengerM2.ticketNumber;
+                                PaxType = p.PassengerType;
+                            }
+                            Fares fare = new Fares()
+                            {
+                                TicketNr = TicketNr,
+                                PassengerType = PaxType,
+                                BaseFare = baseFare,
+                                TotalFare = totalFare,
+                            };
+                            Fares.Add(new ObservableFares(fare));
+                        }
+                    }
+                    if (ard.Passengers.Count > 0)
+                    {
+                        foreach (M3Object m3 in ard.Passengers[0].PassengerItineraryData)
+                        {
+                            Itinerary.Add(new ObservableItinerary(m3.toItinerary()));
+                        }
+                    }
+                    foreach (Remark remark in ard.Remarks)
+                    {
+                        Remarks.Add(new ObservableRemark(remark));
+                    }
+ * */
+
+/*
+                    DirectoryInfo  di = new FileInfo(dialog.FileName).Directory;
+                    string currentSelectedFile = "";
+                    foreach (FileInfo file in di.GetFiles())
+                    {
+                        try
+                        {
+                            currentSelectedFile = file.Name;
+                            string[] testLines = File.ReadAllLines(file.FullName);
+                            IurDocument iDoc = new IurDocument(testLines);
+                            IurSplitter split = new IurSplitter(iDoc);
+                            var splits = split.getPassengerChunks();
+                            PnrFileInfo pnrI = AirAdvancedFormatter.ParsePnrFileInfo(file.FullName);
+                            IurParser iParser = new IurParser(iDoc, pnrI.PnrName, file.Name);
+                            var iParsed = iParser.ParseDocument();
+                            AirAdvancedFormatter aaf = new AirAdvancedFormatter(iParsed);
+                            string airFile = aaf.FormatLiteral();
+                        }
+                        catch (Exception ex)
+                        {
+                            var str = currentSelectedFile;
+                            var st = ex.StackTrace;
+                        }
+                    }
+*/

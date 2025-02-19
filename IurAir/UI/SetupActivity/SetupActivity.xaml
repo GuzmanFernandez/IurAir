@@ -1,0 +1,226 @@
+﻿<Page x:Class="IurAir.UI.SetupActivity.SetupActivity"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:local="clr-namespace:IurAir.UI.SetupActivity"
+      xmlns:behaviors="http://schemas.microsoft.com/xaml/behaviors"
+      mc:Ignorable="d" 
+      Loaded="Init"
+      Unloaded="SaveAll"
+      Background="WhiteSmoke"
+      d:DesignHeight="600" d:DesignWidth="800"
+      Title="SetupActivity">
+    <Page.Resources>
+        <local:BoolInversionConverter x:Key="BoolInversionConverter_ValueConverter"/>
+        <local:CustomFilenamePatternConverter x:Key="IntToRadio_Valueconverter"/>
+    </Page.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="1*"/>
+            <RowDefinition Height="10*"/>
+            <RowDefinition Height="1*"/>
+        </Grid.RowDefinitions>
+        <Grid Grid.Row="0" Background="Black">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="1*"/>
+            </Grid.ColumnDefinitions>
+            <Viewbox Grid.Column="0" Margin="8">
+                <Button x:Name="SetupBTN" HorizontalAlignment="Center" VerticalAlignment="Stretch" Background="Transparent" BorderThickness="0">
+                    <Image Source="{StaticResource GearSelected}" Stretch="Uniform"/>
+                </Button>
+            </Viewbox>
+
+            <Viewbox Grid.Column="1" Margin="8">
+                <Button x:Name="TranslateBTN" HorizontalAlignment="Center" VerticalAlignment="Stretch" Background="Transparent" BorderThickness="0"  Click="Translate">
+                    <Image Source="{StaticResource TranslateWhite}" Stretch="Uniform"/>
+                </Button>
+            </Viewbox>
+        </Grid>
+        <Grid Grid.Row="1" Margin="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="1*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="3*"/>
+                <RowDefinition Height="1*"/>
+            </Grid.RowDefinitions>
+
+            <GroupBox Header="Filename Settings" Grid.Row="1" Grid.Column="2">
+                <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <RadioButton
+                        Margin="0,5,0,5"
+                        Command="{Binding HandleRadio}"
+                        Name="StandardFormat" 
+                        IsChecked="{Binding CustomFormat, Converter={StaticResource BoolInversionConverter_ValueConverter}}"
+                        CommandParameter="{Binding Path=Name, RelativeSource={RelativeSource Self}}">
+                        Standard name format
+                    </RadioButton>
+                    <RadioButton 
+                        Margin="0,5,0,5"
+                        Command="{Binding HandleRadio}"
+                        Name="CustomFormat"
+                        IsChecked="{Binding CustomFormat}"
+                        CommandParameter="{Binding Path=Name, RelativeSource={RelativeSource Self}}">
+                        Custom name format
+                    </RadioButton>
+                </StackPanel>
+            </GroupBox>
+
+            <GroupBox Header="Custom name settings" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="1*"/>
+                        <RowDefinition Height="1*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch" IsEnabled="{Binding CustomFormat}">
+                        <RadioButton
+                            Command="{Binding HandleRadio}"
+                            Name="OrionFormat"
+                            IsChecked="{Binding CustomFilenameFormat, Converter={StaticResource IntToRadio_Valueconverter}, ConverterParameter=1}"
+                            CommandParameter="{Binding Path=Name, RelativeSource={RelativeSource Self}}" Checked="OrionFormat_Checked"
+                            >"air.xxx" format
+                        </RadioButton>
+                    </StackPanel>
+
+                </Grid>
+            </GroupBox>
+
+            <GroupBox Header="Agency data" Grid.ColumnSpan="2">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1*"/>
+                        <ColumnDefinition Width="1*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Margin="0,20" Grid.Column="0">
+                        <TextBlock Margin="10,0,0,0">Air Version</TextBlock>
+                        <TextBox Margin="10,0,20,0" Name="VersionTXT" Text="{Binding Version, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Margin="10,10,0,0">Office Id</TextBlock>
+                        <TextBox Margin="10,0,20,0" Name="OfficeTXT" Text="{Binding OfficeId, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Margin="10,10,0,0">Agency IATA</TextBlock>
+                        <TextBox 
+                            Margin="10,0,20,0" 
+                            Name="IataTXT" 
+                            Text="{Binding AgencyIATA, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                            IsReadOnly="True">
+                            <behaviors:Interaction.Triggers>
+                                <behaviors:EventTrigger EventName="GotFocus">
+                                    <behaviors:InvokeCommandAction Command="{Binding OpenPasswordDialog}"/>
+                                </behaviors:EventTrigger>
+                            </behaviors:Interaction.Triggers>
+                        </TextBox>
+                        <TextBlock Margin="10,10,0,0">Agent Duty Code</TextBlock>
+                        <TextBox Margin="10,0,20,0" Name="DutyCodeTXT" Text="{Binding AgentDutyCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Margin="10,10,0,0">Agent Initials</TextBlock>
+                        <TextBox Margin="10,0,20,0" Name="InitialsTXT" Text="{Binding AgentInitials, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+                        <CheckBox Margin="10,10,0,0" Name="SplitCHB"
+                                  IsChecked="{Binding SplitCHBChecked}"
+                                  >Always split per PAX</CheckBox>
+
+
+                    </StackPanel>
+                    <StackPanel Margin="0,20" Grid.Column="1">
+                        <TextBlock Margin="10,0,0,0">Network ID1</TextBlock>
+                        <TextBox Margin="10,0,20,0" Name="Net1TXT" Text="{Binding NetworkIdentifier1, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Margin="10,10,0,0">Terminal ID1</TextBlock>
+                        <TextBox Margin="10,0,20,0" Name="Terminal1TXT" Text="{Binding TerminalIdentifier1, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Margin="10,10,0,0">Network ID2</TextBlock>
+                        <TextBox Margin="10,0,20,0" Name="Net2TXT" Text="{Binding NetworkIdentifier2, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Margin="10,10,0,0">Terminal ID2</TextBlock>
+                        <TextBox Margin="10,0,20,0" Name="Terminal2TXT" Text="{Binding TerminalIdentifier2, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Margin="10,10,0,0">Default Currency</TextBlock>
+                        <TextBox Margin="10,0,20,0" Name="CurrencyTXT" Text="{Binding DefaultCurrency, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        <Button Content="Load from AIR file" Margin="30, 30" Height="40" Command="{Binding LoadFromFile}" IsEnabled="False"/>
+                    </StackPanel>
+                </Grid>
+            </GroupBox>
+
+            <GroupBox Header="Misc settings" Grid.Column="2">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="1*"/>
+                        <RowDefinition Height="1*"/>
+                        <RowDefinition Height="1*"/>
+                        <RowDefinition Height="1*"/>
+                        <RowDefinition Height="1*"/>
+                    </Grid.RowDefinitions>
+                    <GroupBox Header="Start on system startup" Grid.Row="0" Margin="0,6">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <RadioButton 
+                                Name="StartupRadio_Y"
+                                IsChecked="{Binding StartupStart}"
+                                Command="{Binding HandleRadio}" 
+                                CommandParameter="{Binding Path=Name, RelativeSource={RelativeSource Self}}">Yes</RadioButton>
+                            <RadioButton 
+                                Name="StartupRadio_N" 
+                                Margin="10,0"
+                                IsChecked="{Binding StartupStart, Converter={StaticResource BoolInversionConverter_ValueConverter}}"
+                                Command="{Binding HandleRadio}" 
+                                CommandParameter="{Binding Path=Name, RelativeSource={RelativeSource Self}}">No</RadioButton>
+                        </StackPanel>
+                    </GroupBox>
+                    <GroupBox Header="Automatic file conversion" Grid.Row="1" Margin="0,6">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <RadioButton 
+                                IsChecked="{Binding AutoConvert}"
+                                Name="AutoRadio_Y" 
+                                Command="{Binding HandleRadio}" 
+                                CommandParameter="{Binding Path=Name, RelativeSource={RelativeSource Self}}">Yes</RadioButton>
+                            <RadioButton 
+                                Name="AutoRadio_N"
+                                IsChecked="{Binding AutoConvert, Converter={StaticResource BoolInversionConverter_ValueConverter}}"
+                                Margin="10,0" 
+                                Command="{Binding HandleRadio}" 
+                                CommandParameter="{Binding Path=Name, RelativeSource={RelativeSource Self}}">No</RadioButton>
+                        </StackPanel>
+                    </GroupBox>
+                    <GroupBox Header="Working folders" Grid.Row="2" Grid.RowSpan="3">
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Margin="5,5,0,0">Iur files folder</TextBlock>
+                            <TextBox Margin="5,0,10,0" Name="IurDirTXT" Text="{Binding IurFolder, Mode=OneWay}" IsReadOnly="True"
+                                     ToolTip="{Binding IurFolder}">
+                                <behaviors:Interaction.Triggers>
+                                    <behaviors:EventTrigger EventName="PreviewMouseDown">
+                                        <behaviors:InvokeCommandAction Command="{Binding SetFolder}" CommandParameter="0"/>
+                                    </behaviors:EventTrigger>
+                                </behaviors:Interaction.Triggers>
+                            </TextBox>
+                            <TextBlock Margin="5,5,0,0">Backoffice folder</TextBlock>
+                            <TextBox Margin="5,0,10,0" Name="AmadeusDirTXT" Text="{Binding AmaFolder, Mode=OneWay}" IsReadOnly="True"
+                                     ToolTip="{Binding AmaFolder}">
+                                <behaviors:Interaction.Triggers>
+                                    <behaviors:EventTrigger EventName="PreviewMouseDown">
+                                        <behaviors:InvokeCommandAction Command="{Binding SetFolder}" CommandParameter="1"/>
+                                    </behaviors:EventTrigger>
+                                </behaviors:Interaction.Triggers>
+                            </TextBox>
+
+                            <TextBlock Margin="5,5,0,0">Error log folder</TextBlock>
+                            <TextBox Margin="5,0,10,0" Name="ErrorTXT" Text="{Binding ErrFolder, Mode=OneWay}" IsReadOnly="True" 
+                                     ToolTip="{Binding ErrFolder}">
+                                <behaviors:Interaction.Triggers>
+                                    <behaviors:EventTrigger EventName="PreviewMouseDown">
+                                        <behaviors:InvokeCommandAction Command="{Binding SetFolder}" CommandParameter="2"/>
+                                    </behaviors:EventTrigger>
+                                </behaviors:Interaction.Triggers>
+                            </TextBox>
+                        </StackPanel>
+                    </GroupBox>
+
+                </Grid>
+            </GroupBox>
+        </Grid>
+
+    </Grid>
+</Page>

@@ -1,0 +1,66 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="IurAir.Properties" GeneratedClassName="Settings">
+  <Profiles />
+  <Settings>
+    <Setting Name="Version" Type="System.String" Scope="User">
+      <Value Profile="(Default)">207</Value>
+    </Setting>
+    <Setting Name="OfficeId" Type="System.String" Scope="User">
+      <Value Profile="(Default)">AGPI10000</Value>
+    </Setting>
+    <Setting Name="AgentDutyCode" Type="System.String" Scope="User">
+      <Value Profile="(Default)">SU</Value>
+    </Setting>
+    <Setting Name="AgentInitials" Type="System.String" Scope="User">
+      <Value Profile="(Default)">AC</Value>
+    </Setting>
+    <Setting Name="NetworkIdentifier1" Type="System.String" Scope="User">
+      <Value Profile="(Default)">1A</Value>
+    </Setting>
+    <Setting Name="TerminalIdentifier1" Type="System.String" Scope="User">
+      <Value Profile="(Default)">1122334</Value>
+    </Setting>
+    <Setting Name="NetworkIdentifier2" Type="System.String" Scope="User">
+      <Value Profile="(Default)">1A</Value>
+    </Setting>
+    <Setting Name="TerminalIdentifier2" Type="System.String" Scope="User">
+      <Value Profile="(Default)">1122334</Value>
+    </Setting>
+    <Setting Name="AgencyIATA" Type="System.String" Scope="User">
+      <Value Profile="(Default)">78225906</Value>
+    </Setting>
+    <Setting Name="IurFolder" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="BackOfficeFolder" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="ErrorFolder" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="Startup" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="AutoConvert" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="DefaultCurrency" Type="System.String" Scope="User">
+      <Value Profile="(Default)">EUR</Value>
+    </Setting>
+    <Setting Name="DebugMode" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="PersistentDebug" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="CustomFileFormat" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="CustomFormatPattern" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">0</Value>
+    </Setting>
+    <Setting Name="SplitPerPax" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+  </Settings>
+</SettingsFile>

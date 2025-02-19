@@ -1,0 +1,61 @@
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace IurAir.UI.TranslationActivity
+{
+    public class IurWatcher
+    {
+
+        public IurWatcher(string path, WatcherCallback watcherCallback) 
+        { 
+            _pathToWatch = path;
+            _watcherCallback = watcherCallback;
+        }
+
+        private WatcherCallback _watcherCallback;
+        private FileSystemWatcher _watcher;
+        private string _pathToWatch;
+        private bool _isWatching;
+
+        public bool watching
+        {
+            get { return _isWatching; }
+            set { _isWatching = value; }
+        }
+        
+        public void watch()
+        {
+            if(!watching)
+            {
+                _watcher = new FileSystemWatcher(_pathToWatch);
+                _watcher.EnableRaisingEvents = true;
+                _watcher.IncludeSubdirectories = false;
+
+                _watcher.Created += OnFileCreated;
+                watching = true;
+            }
+        }
+
+        public void stopWatch()
+        {
+            _watcher.Created -= OnFileCreated;
+            _watcher.EnableRaisingEvents= false;
+            _watcher.Dispose();
+            watching = false;
+        }
+
+        public void OnFileCreated(object sender, FileSystemEventArgs e)
+        {
+            _watcherCallback.FileCreated(e.FullPath);
+        }
+    }
+
+    public interface WatcherCallback
+    {
+        void FileCreated(string file);
+    }
+}
