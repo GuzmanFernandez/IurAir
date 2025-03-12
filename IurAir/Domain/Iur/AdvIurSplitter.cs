@@ -22,7 +22,7 @@ namespace IurAir.Domain.Iur
 {
     public class AdvIurSplitter : IAirable
     {
-        private IurDocument _document;
+        public IurDocument _document;
         private List<M1Object> _paxes;
         public List<TicketDataRecord> TicketedPassengers { get; } = new List<TicketDataRecord>();
         public List<UnparsablePassenger> UnparsablePassengers { get; } = new List<UnparsablePassenger> { };
@@ -113,9 +113,12 @@ namespace IurAir.Domain.Iur
                 }
             }
             AirHeaders = getTktHeaders();
-            MirHeaders = getMIRTktHeaders();
+            //MirHeaders = getMIRTktHeaders();
+            MirFileHeader mfh = new MirFileHeader(Headers.IataNr, 001);
+            mfh.MapFrom(this);
+            string MIRHeader = mfh.GenerateHeader();
             HeadersTranslations.Add("AIR", AirHeaders.format());
-            HeadersTranslations.Add("MIR", MirHeaders.format());
+            //HeadersTranslations.Add("MIR", MirHeaders.format());
             getPerPaxParts(SettingService.GetPerPaxSplit());
         }
 

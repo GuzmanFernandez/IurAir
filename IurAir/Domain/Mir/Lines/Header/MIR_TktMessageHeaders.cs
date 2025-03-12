@@ -204,26 +204,38 @@ namespace IurAir.Domain.Mir.Lines.Header
 
     internal class FourthLineFormatter
     {
-        public string CarrierAlphaCode { get; set; }
-        public string CarrierCode { get; set; }
-        public string CarrierName { get; set; }
-        public DateTime DateOfFirstTravel { get; set; }
+        public Boolean retransmission { get; set; }
+        public Boolean manualPricing { get; set; }
+        public Boolean fares360 { get; set; }
+        public Boolean fare4all { get; set; }
+        public Boolean stpTicketIssued { get; set; }
+        public int atbIndicator { get; set; }
+        public Boolean exchangeTicketInfo { get; set; }
+
+        //public string CarrierAlphaCode { get; set; }
+
+        //public DocumentType _docType { get; set; }
+        //public string CarrierCode { get; set; }
+        //public string CarrierName { get; set; }
+        //public DateTime DateOfFirstTravel { get; set; }
 
         public FourthLineFormatter(DocumentType docType)
         {
-            CarrierAlphaCode = carrierAlphaCode;
-            CarrierCode = carrierCode;
-            CarrierName = carrierName;
-            DateOfFirstTravel = dateOfFirstTravel;
+
+            //CarrierAlphaCode = carrierAlphaCode;
+            //CarrierCode = carrierCode;
+            //CarrierName = carrierName;
+            //DateOfFirstTravel = dateOfFirstTravel;
         }
 
         public string Format()
         {
-            return $"NN " +
-                   $"{DateTime.Now.ToString("MMM").ToUpper()}{DateTime.Now.ToString("yy")}" +
-                   $"{DateTime.Now.ToString("HH")}{DateTime.Now.ToString("mm")} {CarrierAlphaCode}{CarrierCode}{AirUtil.PadString(CarrierName.ToUpper(), ' ', 24, false)}" +
-                   $"{DateOfFirstTravel.ToString("ddMMMyy").ToUpper()}" +
-                   $"999999999999{Environment.NewLine}";
+            return "";
+            //return $"NN " +
+            //       $"{DateTime.Now.ToString("MMM").ToUpper()}{DateTime.Now.ToString("yy")}" +
+            //       $"{DateTime.Now.ToString("HH")}{DateTime.Now.ToString("mm")} {CarrierAlphaCode}{CarrierCode}{AirUtil.PadString(CarrierName.ToUpper(), ' ', 24, false)}" +
+            //       $"{DateOfFirstTravel.ToString("ddMMMyy").ToUpper()}" +
+            //       $"999999999999{Environment.NewLine}";
 
         }
 
